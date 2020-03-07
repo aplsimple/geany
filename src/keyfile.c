@@ -1,8 +1,7 @@
 /*
  *      keyfile.c - this file is part of Geany, a fast and lightweight IDE
  *
- *      Copyright 2005-2012 Enrico Tröger <enrico(dot)troeger(at)uvena(dot)de>
- *      Copyright 2006-2012 Nick Treleaven <nick(dot)treleaven(at)btinternet(dot)com>
+ *      Copyright 2005 The Geany contributors
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -107,6 +106,7 @@ static GPtrArray *session_files = NULL;
 static gint session_notebook_page;
 static gint hpan_position;
 static gint vpan_position;
+static guint document_list_update_idle_func_id = 0;
 static const gchar atomic_file_saving_key[] = "use_atomic_file_saving";
 
 static GPtrArray *keyfile_groups = NULL;
@@ -133,11 +133,13 @@ void configuration_add_pref_group(struct StashGroup *group, gboolean for_prefs_d
 }
 
 
-/* The group will be free'd on quitting. */
-void configuration_add_various_pref_group(struct StashGroup *group)
+/* The group will be free'd on quitting.
+ * prefix can be NULL to use group name */
+void configuration_add_various_pref_group(struct StashGroup *group,
+	const gchar *prefix)
 {
 	configuration_add_pref_group(group, TRUE);
-	stash_group_set_various(group, TRUE);
+	stash_group_set_various(group, TRUE, prefix);
 }
 
 
@@ -226,7 +228,7 @@ static void init_pref_groups(void)
 
 	/* various geany prefs */
 	group = stash_group_new(PACKAGE);
-	configuration_add_various_pref_group(group);
+	configuration_add_various_pref_group(group, "editor");
 
 	stash_group_add_boolean(group, &editor_prefs.show_scrollbars,
 		"show_editor_scrollbars", TRUE);
@@ -236,6 +238,15 @@ static void init_pref_groups(void)
 		"use_gtk_word_boundaries", TRUE);
 	stash_group_add_boolean(group, &editor_prefs.complete_snippets_whilst_editing,
 		"complete_snippets_whilst_editing", FALSE);
+	/* for backwards-compatibility */
+	stash_group_add_integer(group, &editor_prefs.indentation->hard_tab_width,
+		"indent_hard_tab_width", 8);
+	stash_group_add_integer(group, &editor_prefs.ime_interaction,
+		"editor_ime_interaction", SC_IME_WINDOWED);
+
+	group = stash_group_new(PACKAGE);
+	configuration_add_various_pref_group(group, "files");
+
 	stash_group_add_boolean(group, &file_prefs.use_safe_file_saving,
 		atomic_file_saving_key, FALSE);
 	stash_group_add_boolean(group, &file_prefs.gio_unsafe_save_backup,
@@ -248,23 +259,27 @@ static void init_pref_groups(void)
 		"show_keep_edit_history_on_reload_msg", TRUE);
 	stash_group_add_boolean(group, &file_prefs.reload_clean_doc_on_file_change,
 		"reload_clean_doc_on_file_change", FALSE);
-	/* for backwards-compatibility */
-	stash_group_add_integer(group, &editor_prefs.indentation->hard_tab_width,
-		"indent_hard_tab_width", 8);
-	stash_group_add_integer(group, (gint*)&search_prefs.find_selection_type,
-		"find_selection_type", GEANY_FIND_SEL_CURRENT_WORD);
+	stash_group_add_boolean(group, &file_prefs.save_config_on_file_change,
+		"save_config_on_file_change", TRUE);
 	stash_group_add_string(group, &file_prefs.extract_filetype_regex,
 		"extract_filetype_regex", GEANY_DEFAULT_FILETYPE_REGEX);
+	stash_group_add_boolean(group, &ui_prefs.allow_always_save,
+		"allow_always_save", FALSE);
+
+	group = stash_group_new(PACKAGE);
+	configuration_add_various_pref_group(group, "search");
+
+	stash_group_add_integer(group, (gint*)&search_prefs.find_selection_type,
+		"find_selection_type", GEANY_FIND_SEL_CURRENT_WORD);
 	stash_group_add_boolean(group, &search_prefs.replace_and_find_by_default,
 		"replace_and_find_by_default", TRUE);
-	stash_group_add_integer(group, &editor_prefs.ime_interaction,
-		"editor_ime_interaction", SC_IME_WINDOWED);
 
 	/* Note: Interface-related various prefs are in ui_init_prefs() */
 
 	/* various build-menu prefs */
+	// Warning: don't move PACKAGE group name items here
 	group = stash_group_new("build-menu");
-	configuration_add_various_pref_group(group);
+	configuration_add_various_pref_group(group, "build");
 
 	stash_group_add_integer(group, &build_menu_prefs.number_ft_menu_items,
 		"number_ft_menu_items", 0);
@@ -832,7 +847,9 @@ static void load_dialog_prefs(GKeyFile *config)
 		"none");
 	if (tmp_string)
 	{
-		const GeanyEncoding *enc = encodings_get_from_charset(tmp_string);
+		const GeanyEncoding *enc = NULL;
+		if (strcmp(tmp_string, "none") != 0)
+			enc = encodings_get_from_charset(tmp_string);
 		if (enc != NULL)
 			file_prefs.default_open_encoding = enc->idx;
 		else
@@ -902,7 +919,7 @@ static void load_dialog_prefs(GKeyFile *config)
 		 * this can't be done in init_pref_groups() because we need to know the value of
 		 * vte_info.load_vte, and `vc` to be initialized */
 		group = stash_group_new("VTE");
-		configuration_add_various_pref_group(group);
+		configuration_add_various_pref_group(group, "terminal");
 
 		stash_group_add_string(group, &vc->send_cmd_prefix, "send_cmd_prefix", "");
 		stash_group_add_boolean(group, &vc->send_selection_unsafe, "send_selection_unsafe", FALSE);
@@ -1313,11 +1330,46 @@ void configuration_apply_settings(void)
 }
 
 
+static gboolean save_configuration_cb(gpointer data)
+{
+	configuration_save();
+	if (app->project != NULL)
+	{
+		project_write_config();
+	}
+	document_list_update_idle_func_id = 0;
+	return G_SOURCE_REMOVE;
+}
+
+
+static void document_list_changed_cb(GObject *obj, GeanyDocument *doc, gpointer data)
+{
+	g_return_if_fail(doc != NULL && doc->is_valid);
+
+	/* save configuration, especially session file list, but only if we are not just starting
+	 * and not about to quit */
+	if (file_prefs.save_config_on_file_change &&
+		main_status.main_window_realized &&
+		!main_status.opening_session_files &&
+		!main_status.quitting)
+	{
+		if (document_list_update_idle_func_id == 0)
+		{
+			document_list_update_idle_func_id = g_idle_add(save_configuration_cb, NULL);
+		}
+	}
+}
+
+
 void configuration_init(void)
 {
 	keyfile_groups = g_ptr_array_new();
 	pref_groups = g_ptr_array_new();
 	init_pref_groups();
+
+	g_signal_connect(geany_object, "document-open", G_CALLBACK(document_list_changed_cb), NULL);
+	g_signal_connect(geany_object, "document-save", G_CALLBACK(document_list_changed_cb), NULL);
+	g_signal_connect(geany_object, "document-close", G_CALLBACK(document_list_changed_cb), NULL);
 }
 
 
@@ -1325,6 +1377,8 @@ void configuration_finalize(void)
 {
 	guint i;
 	StashGroup *group;
+
+	g_signal_handlers_disconnect_by_func(geany_object, G_CALLBACK(document_list_changed_cb), NULL);
 
 	foreach_ptr_array(group, i, keyfile_groups)
 		stash_group_free(group);

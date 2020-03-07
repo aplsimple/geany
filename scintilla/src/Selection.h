@@ -8,15 +8,13 @@
 #ifndef SELECTION_H
 #define SELECTION_H
 
-#ifdef SCI_NAMESPACE
 namespace Scintilla {
-#endif
 
 class SelectionPosition {
 	Sci::Position position;
 	Sci::Position virtualSpace;
 public:
-	explicit SelectionPosition(Sci::Position position_=INVALID_POSITION, Sci::Position virtualSpace_=0) : position(position_), virtualSpace(virtualSpace_) {
+	explicit SelectionPosition(Sci::Position position_=INVALID_POSITION, Sci::Position virtualSpace_=0) noexcept : position(position_), virtualSpace(virtualSpace_) {
 		PLATFORM_ASSERT(virtualSpace < 800000);
 		if (virtualSpace < 0)
 			virtualSpace = 0;
@@ -86,15 +84,15 @@ struct SelectionRange {
 	SelectionPosition caret;
 	SelectionPosition anchor;
 
-	SelectionRange() : caret(), anchor() {
+	SelectionRange() noexcept : caret(), anchor() {
 	}
-	explicit SelectionRange(SelectionPosition single) : caret(single), anchor(single) {
+	explicit SelectionRange(SelectionPosition single) noexcept : caret(single), anchor(single) {
 	}
-	explicit SelectionRange(Sci::Position single) : caret(single), anchor(single) {
+	explicit SelectionRange(Sci::Position single) noexcept : caret(single), anchor(single) {
 	}
-	SelectionRange(SelectionPosition caret_, SelectionPosition anchor_) : caret(caret_), anchor(anchor_) {
+	SelectionRange(SelectionPosition caret_, SelectionPosition anchor_) noexcept : caret(caret_), anchor(anchor_) {
 	}
-	SelectionRange(Sci::Position caret_, Sci::Position anchor_) : caret(caret_), anchor(anchor_) {
+	SelectionRange(Sci::Position caret_, Sci::Position anchor_) noexcept : caret(caret_), anchor(anchor_) {
 	}
 	bool Empty() const {
 		return anchor == caret;
@@ -143,7 +141,7 @@ public:
 	enum selTypes { noSel, selStream, selRectangle, selLines, selThin };
 	selTypes selType;
 
-	Selection();
+	Selection() noexcept;
 	~Selection();
 	bool IsRectangular() const;
 	Sci::Position MainCaret() const;
@@ -189,8 +187,6 @@ public:
 	}
 };
 
-#ifdef SCI_NAMESPACE
 }
-#endif
 
 #endif

@@ -1,8 +1,7 @@
 /*
  *      pluginsignals.c - this file is part of Geany, a fast and lightweight IDE
  *
- *      Copyright 2008-2012 Enrico Tröger <enrico(dot)troeger(at)uvena(dot)de>
- *      Copyright 2008-2012 Nick Treleaven <nick(dot)treleaven(at)btinternet(dot)com>
+ *      Copyright 2008 The Geany contributors
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -142,7 +141,8 @@ signal void (*document_close)(GObject *obj, GeanyDocument *doc, gpointer user_da
 signal void (*project_open)(GObject *obj, GKeyFile *config, gpointer user_data);
 
 /** Sent when a project is saved (happens when the project is created, the properties
- *  dialog is closed, before the project is closed, or when Geany is exited).
+ *  dialog is closed, before the project is closed, when Geany automatically
+ *  saves its configuration by opening/closing documents or when Geany is exited).
  *  This signal is emitted shortly before Geany will write the contents of the
  *  GKeyFile to the disc.
  *
@@ -191,7 +191,7 @@ signal void (*project_dialog_open)(GObject *obj, GtkWidget *notebook, gpointer u
  */
 signal void (*project_dialog_confirmed)(GObject *obj, GtkWidget *notebook, gpointer user_data);
 
-/** Sent before project dialog is closed. By using this signal, plugins can remove 
+/** Sent before project dialog is closed. By using this signal, plugins can remove
  *  tabs previously added in project-dialog-open signal handler.
  *
  * @param obj a GeanyObject instance, should be ignored.
@@ -270,3 +270,23 @@ signal void (*update_editor_menu)(GObject *obj, const gchar *word, gint pos, Gea
  */
 signal gboolean (*editor_notify)(GObject *obj, GeanyEditor *editor, SCNotification *nt,
 		gpointer user_data);
+
+/** Sent whenever a key is pressed.
+ *
+ * This signal allows plugins to receive key press events before they are processed
+ * by Geany. Plugins can then process key presses before Geany and decide,
+ * whether Geany should receive the key press event or not.
+ *
+ * @warning This signal should be used carefully. If multiple plugins use this
+ *          signal, the result could be unpredictble depending on which plugin
+ *          receives the signal first.
+ *
+ * @param obj a GeanyObject instance, should be ignored.
+ * @param key The GdkEventKey corresponding to the key press.
+ * @param user_data user data.
+ * @return @c TRUE to stop other handlers from being invoked for the event.
+ *         @c FALSE to propagate the event further.
+ *
+ * @since 1.34
+ */
+signal gboolean (*key_press)(GObject *obj, GdkEventKey *key, gpointer user_data);

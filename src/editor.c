@@ -1,9 +1,7 @@
 /*
  *      editor.c - this file is part of Geany, a fast and lightweight IDE
  *
- *      Copyright 2005-2012 Enrico Tröger <enrico(dot)troeger(at)uvena(dot)de>
- *      Copyright 2006-2012 Nick Treleaven <nick(dot)treleaven(at)btinternet(dot)com>
- *      Copyright 2009-2012 Frank Lanitz <frank(at)frank(dot)uvena(dot)de>
+ *      Copyright 2005 The Geany contributors
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -340,7 +338,23 @@ static gboolean on_editor_button_press_event(GtkWidget *widget, GdkEventButton *
 			current_word, sizeof current_word, NULL);
 
 		can_goto = sci_has_selection(editor->sci) || current_word[0] != '\0';
-		ui_update_popup_goto_items(can_goto);
+//aplsimple:
+//		ui_update_popup_goto_items(can_goto);
+/* create a list of locks/unlocks for the goto and context actions */
+		gchar cangos[64];  // never reachable maximum
+		for (gint i=0; i<64; i++)
+			cangos[i]=(can_goto?'1':'0'); // flag the whole group
+		gchar* command;
+		if (doc->file_type != NULL &&
+		!EMPTY(doc->file_type->context_action_cmd))
+			command = g_strdup(doc->file_type->context_action_cmd);
+		else
+			command = g_strdup(tool_prefs.context_action_cmd);
+		/* flag the context action (see widgets.popup_goto_items[1] ) */
+		cangos[1] = (G_LIKELY(!EMPTY(command))?'1':'0');
+		g_free(command);
+		ui_update_popup_goto_items(cangos);
+
 		ui_update_popup_copy_items(doc);
 		ui_update_insert_include_item(doc, 0);
 
@@ -542,7 +556,7 @@ static void check_line_breaking(GeanyEditor *editor, gint pos)
 	gint line, lstart, col;
 	gchar c;
 
-	if (!editor->line_breaking)
+	if (!editor->line_breaking || sci_get_selection_mode(editor->sci) != SC_SEL_STREAM)
 		return;
 
 	col = sci_get_col_from_position(sci, pos);
@@ -556,12 +570,12 @@ static void check_line_breaking(GeanyEditor *editor, gint pos)
 		return;
 
 	/* look for the last space before line_break_column */
-	pos = MIN(pos, lstart + get_project_pref(line_break_column));
+	pos = sci_get_position_from_col(sci, line, get_project_pref(line_break_column));
 
 	while (pos > lstart)
 	{
 		c = sci_get_char_at(sci, --pos);
-		if (c == GDK_space)
+		if (c == ' ')
 		{
 			gint diff, last_pos, last_col;
 
@@ -2562,7 +2576,6 @@ gboolean editor_goto_next_snippet_cursor(GeanyEditor *editor)
 	}
 	else
 	{
-		utils_beep();
 		return FALSE;
 	}
 }
@@ -3116,7 +3129,7 @@ void editor_do_comment_toggle(GeanyEditor *editor)
 	gint count_commented = 0, count_uncommented = 0;
 	gchar sel[256];
 	const gchar *co, *cc;
-	gboolean break_loop = FALSE, single_line = FALSE;
+	gboolean single_line = FALSE;
 	gboolean first_line_was_comment = FALSE;
 	gboolean last_line_was_comment = FALSE;
 	gsize co_len;
@@ -3148,7 +3161,7 @@ void editor_do_comment_toggle(GeanyEditor *editor)
 
 	sci_start_undo_action(editor->sci);
 
-	for (i = first_line; (i <= last_line) && (! break_loop); i++)
+	for (i = first_line; i <= last_line; i++)
 	{
 		gint buf_len;
 
@@ -3208,7 +3221,6 @@ void editor_do_comment_toggle(GeanyEditor *editor)
 			}
 
 			/* break because we are already on the last line */
-			break_loop = TRUE;
 			break;
 		}
 	}
@@ -3287,7 +3299,7 @@ gint editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_line
 	gint count = 0;
 	gchar sel[256];
 	const gchar *co, *cc;
-	gboolean break_loop = FALSE, single_line = FALSE;
+	gboolean single_line = FALSE;
 	GeanyFiletype *ft;
 
 	g_return_val_if_fail(editor != NULL && editor->document->file_type != NULL, 0);
@@ -3320,7 +3332,7 @@ gint editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_line
 
 	sci_start_undo_action(editor->sci);
 
-	for (i = first_line; (i <= last_line) && (! break_loop); i++)
+	for (i = first_line; i <= last_line; i++)
 	{
 		gint buf_len;
 
@@ -3372,7 +3384,6 @@ gint editor_do_comment(GeanyEditor *editor, gint line, gboolean allow_empty_line
 				count = 1;
 
 				/* break because we are already on the last line */
-				break_loop = TRUE;
 				break;
 			}
 		}
@@ -3933,7 +3944,7 @@ static void smart_line_indentation(GeanyEditor *editor, gint first_line, gint la
 
 
 /* simple indentation to indent the current line with the same indent as the previous one */
-void editor_smart_line_indentation(GeanyEditor *editor, gint pos)
+void editor_smart_line_indentation(GeanyEditor *editor)
 {
 	gint first_line, last_line;
 	gint first_sel_start, first_sel_end;
@@ -3950,9 +3961,6 @@ void editor_smart_line_indentation(GeanyEditor *editor, gint pos)
 	/* Find the last line with chars selected (not EOL char) */
 	last_line = sci_get_line_from_position(sci, first_sel_end - editor_get_eol_char_len(editor));
 	last_line = MAX(first_line, last_line);
-
-	if (pos == -1)
-		pos = first_sel_start;
 
 	sci_start_undo_action(sci);
 
@@ -4528,7 +4536,7 @@ void editor_strip_line_trailing_spaces(GeanyEditor *editor, gint line)
 	gchar ch = sci_get_char_at(editor->sci, i);
 
 	/* Diff hunks should keep trailing spaces */
-	if (sci_get_lexer(editor->sci) == SCLEX_DIFF)
+	if (editor->document->file_type->id == GEANY_FILETYPES_DIFF)
 		return;
 
 	while ((i >= line_start) && ((ch == ' ') || (ch == '\t')))
@@ -4599,19 +4607,20 @@ void editor_ensure_final_newline(GeanyEditor *editor)
 
 void editor_set_font(GeanyEditor *editor, const gchar *font)
 {
-	gint style, size;
+	gint style;
 	gchar *font_name;
 	PangoFontDescription *pfd;
+	gdouble size;
 
 	g_return_if_fail(editor);
 
 	pfd = pango_font_description_from_string(font);
-	size = pango_font_description_get_size(pfd) / PANGO_SCALE;
+	size = pango_font_description_get_size(pfd) / (gdouble) PANGO_SCALE;
 	font_name = g_strdup_printf("!%s", pango_font_description_get_family(pfd));
 	pango_font_description_free(pfd);
 
 	for (style = 0; style <= STYLE_MAX; style++)
-		sci_set_font(editor->sci, style, font_name, size);
+		sci_set_font_fractional(editor->sci, style, font_name, size);
 
 	g_free(font_name);
 
@@ -4747,6 +4756,10 @@ static gboolean
 on_editor_scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer user_data)
 {
 	GeanyEditor *editor = user_data;
+
+	/* we only handle up and down, leave the rest to Scintilla */
+	if (event->direction != GDK_SCROLL_UP && event->direction != GDK_SCROLL_DOWN)
+		return FALSE;
 
 	/* Handle scroll events if Alt is pressed and scroll whole pages instead of a
 	 * few lines only, maybe this could/should be done in Scintilla directly */
@@ -4902,6 +4915,7 @@ static gboolean register_named_icon(ScintillaObject *sci, guint id, const gchar 
 static ScintillaObject *create_new_sci(GeanyEditor *editor)
 {
 	ScintillaObject *sci;
+	int rectangular_selection_modifier;
 
 	sci = SCINTILLA(scintilla_new());
 
@@ -4932,6 +4946,15 @@ static ScintillaObject *create_new_sci(GeanyEditor *editor)
 
 	/* necessary for column mode editing, implemented in Scintilla since 2.0 */
 	SSM(sci, SCI_SETADDITIONALSELECTIONTYPING, 1, 0);
+
+	/* rectangular selection modifier for creating rectangular selections with the mouse.
+	 * We use the historical Scintilla values by default. */
+#ifdef G_OS_WIN32
+	rectangular_selection_modifier = SCMOD_ALT;
+#else
+	rectangular_selection_modifier = SCMOD_CTRL;
+#endif
+	SSM(sci, SCI_SETRECTANGULARSELECTIONMODIFIER, rectangular_selection_modifier, 0);
 
 	/* virtual space */
 	SSM(sci, SCI_SETVIRTUALSPACEOPTIONS, editor_prefs.show_virtual_space, 0);

@@ -1,8 +1,7 @@
 /*
  *      filetypes.h - this file is part of Geany, a fast and lightweight IDE
  *
- *      Copyright 2005-2012 Enrico Tröger <enrico(dot)troeger(at)uvena(dot)de>
- *      Copyright 2006-2012 Nick Treleaven <nick(dot)treleaven(at)btinternet(dot)com>
+ *      Copyright 2005 The Geany contributors
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -106,6 +105,7 @@ typedef enum
 	GEANY_FILETYPES_COFFEESCRIPT,
 	GEANY_FILETYPES_GO,
 	GEANY_FILETYPES_ZEPHIR,
+	GEANY_FILETYPES_BIBTEX,
 	/* ^ append items here */
 	GEANY_MAX_BUILT_IN_FILETYPES	/* Don't use this, use filetypes_array->len instead */
 }
@@ -195,9 +195,6 @@ GType filetype_get_type (void);
 extern GPtrArray *filetypes_array;
 
 extern GSList *filetypes_by_title;
-
-
-GeanyFiletype *filetypes_find(GCompareFunc predicate, gpointer user_data);
 
 
 void filetypes_init(void);

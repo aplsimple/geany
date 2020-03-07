@@ -23,7 +23,7 @@
 	PerlParser, \
 	PhpParser, \
 	PythonParser, \
-	LaTeXParser, \
+	TexParser, \
 	AsmParser, \
 	ConfParser, \
 	SqlParser, \
@@ -42,15 +42,15 @@
 	JavaScriptParser, \
 	HaskellParser, \
 	CsharpParser, \
-	FreeBasicParser,\
+	BasicParser,\
 	HaxeParser,\
-	RestParser, \
+	RstParser, \
 	HtmlParser, \
 	F77Parser, \
 	GLSLParser, \
-	MatlabParser, \
+	MatLabParser, \
 	ValaParser, \
-	ActionScriptParser, \
+	FlexParser, \
 	NsisParser, \
 	MarkdownParser, \
 	Txt2tagsParser, \
@@ -65,6 +65,7 @@
 	GoParser, \
 	JsonParser, \
 	ZephirParser, \
-	PowerShellParser
+	PowerShellParser, \
+	BibtexParser
 
 #endif  /* CTAGS_MAIN_PARSERS_H */

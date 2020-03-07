@@ -1,8 +1,7 @@
 /*
  *      pluginutils.c - this file is part of Geany, a fast and lightweight IDE
  *
- *      Copyright 2009-2012 Nick Treleaven <nick(dot)treleaven(at)btinternet(dot)com>
- *      Copyright 2009-2012 Enrico Tröger <enrico(dot)troeger(at)uvena(dot)de>
+ *      Copyright 2005 The Geany contributors
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -724,7 +723,7 @@ void plugin_set_document_data(struct GeanyPlugin *plugin, struct GeanyDocument *
  * void on_document_save(GObject *unused, GeanyDocument *doc, GeanyPlugin *plugin)
  * {
  *     const gchar *some_data = plugin_get_document_data(plugin, doc, "my-data");
- *     g_print("my-data: %s", some_data);
+ *     g_print("my-data: %s\n", some_data);
  * }
  *
  * gboolean plugin_init(GeanyPlugin *plugin, gpointer unused)

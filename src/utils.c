@@ -1,8 +1,7 @@
 /*
  *      utils.c - this file is part of Geany, a fast and lightweight IDE
  *
- *      Copyright 2005-2012 Enrico Tröger <enrico(dot)troeger(at)uvena(dot)de>
- *      Copyright 2006-2012 Nick Treleaven <nick(dot)treleaven(at)btinternet(dot)com>
+ *      Copyright 2005 The Geany contributors
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -1309,12 +1308,10 @@ void utils_free_pointers(gsize arg_count, ...)
 }
 
 
-/* currently unused */
-#if 0
 /* Creates a string array deep copy of a series of non-NULL strings.
- * The first argument is nothing special.
- * The list must be ended with NULL.
- * If first is NULL, NULL is returned. */
+ * The first argument is nothing special and must not be NULL.
+ * The list must be terminated with NULL. */
+GEANY_EXPORT_SYMBOL
 gchar **utils_strv_new(const gchar *first, ...)
 {
 	gsize strvlen, i;
@@ -1344,7 +1341,6 @@ gchar **utils_strv_new(const gchar *first, ...)
 	strv[i] = NULL;
 	return strv;
 }
-#endif
 
 
 /**
@@ -2044,6 +2040,205 @@ gchar **utils_strv_join(gchar **first, gchar **second)
 	return strv;
 }
 
+/* * Returns the common prefix in a list of strings.
+ *
+ * The size of the list may be given explicitely, but defaults to @c g_strv_length(strv).
+ *
+ * @param strv The list of strings to process.
+ * @param strv_len The number of strings contained in @a strv. Can be -1 if it's terminated by @c NULL.
+ *
+ * @return The common prefix that is part of all strings (maybe empty), or NULL if an empty list
+ *         was passed in.
+ */
+GEANY_EXPORT_SYMBOL
+gchar *utils_strv_find_common_prefix(gchar **strv, gssize strv_len)
+{
+	gsize num;
+
+	if (strv_len == 0)
+		return NULL;
+
+	num = (strv_len == -1) ? g_strv_length(strv) : (gsize) strv_len;
+
+	for (gsize i = 0; strv[0][i]; i++)
+	{
+		for (gsize j = 1; j < num; j++)
+		{
+			if (strv[j][i] != strv[0][i])
+			{
+				/* return prefix on first mismatch */
+				return g_strndup(strv[0], i);
+			}
+		}
+	}
+
+	return g_strdup(strv[0]);
+}
+
+
+/* * Returns the longest common substring in a list of strings.
+ *
+ * The size of the list may be given explicitely, but defaults to @c g_strv_length(strv).
+ *
+ * @param strv The list of strings to process.
+ * @param strv_len The number of strings contained in @a strv. Can be -1 if it's terminated by @c NULL.
+ *
+ * @return The common prefix that is part of all strings.
+ */
+GEANY_EXPORT_SYMBOL
+gchar *utils_strv_find_lcs(gchar **strv, gssize strv_len, const gchar *delim)
+{
+	gchar *first, *_sub, *sub;
+	gsize num;
+	gsize n_chars;
+	gsize len;
+	gsize max = 0;
+	char *lcs;
+	gsize found;
+
+	if (strv_len == 0)
+		return NULL;
+
+	num = (strv_len == -1) ? g_strv_length(strv) : (gsize) strv_len;
+
+	first = strv[0];
+	len = strlen(first);
+
+	/* sub is the working area where substrings from first are copied to */
+	sub = g_malloc(len+1);
+	lcs = g_strdup("");
+	foreach_str(_sub, first)
+	{
+		gsize chars_left = len - (_sub - first);
+		/* No point in continuing if the remainder is too short */
+		if (max > chars_left)
+			break;
+		/* If delimiters are given, we only need to compare substrings which start and
+		 * end with one of them, so skip any non-delim chars at front ... */
+		if (NZV(delim) && (strchr(delim, _sub[0]) == NULL))
+			continue;
+		for (n_chars = 1; n_chars <= chars_left; n_chars++)
+		{
+			if (NZV(delim))
+			{	/* ... and advance to the next delim char at the end, if any */
+				if (!_sub[n_chars] || strchr(delim, _sub[n_chars]) == NULL)
+					continue;
+				n_chars += 1;
+			}
+			g_strlcpy(sub, _sub, n_chars+1);
+			found = 1;
+			for (gsize i = 1; i < num; i++)
+			{
+				if (strstr(strv[i], sub) == NULL)
+					break;
+				found++;
+			}
+			if (found == num && n_chars > max)
+			{
+				max = n_chars;
+				SETPTR(lcs, g_strdup(sub));
+			}
+		}
+	}
+	g_free(sub);
+
+	return lcs;
+}
+
+
+/** Transform file names in a list to be shorter.
+ *
+ * This function takes a list of file names (probably with absolute paths), and
+ * transforms the paths such that they are short but still unique. This is intended
+ * for dialogs which present the file list to the user, where the base name may result
+ * in duplicates (showing the full path might be inappropriate).
+ *
+ * The algorthm strips the common prefix (e-g. the user's home directory) and
+ * replaces the longest common substring with an ellipsis ("...").
+ *
+ * @param file_names @array{length=file_names_len} The list of strings to process.
+ * @param file_names_len The number of strings contained in @a file_names. Can be -1 if it's
+ *        terminated by @c NULL.
+ * @return @transfer{full} A newly-allocated array of transformed paths strings, terminated by
+            @c NULL. Use @c g_strfreev() to free it.
+ *
+ * @since 1.34 (API 239)
+ */
+GEANY_API_SYMBOL
+gchar **utils_strv_shorten_file_list(gchar **file_names, gssize file_names_len)
+{
+	gsize num;
+	gsize i;
+	gchar *prefix, *lcs, *end;
+	gchar **names;
+	gsize prefix_len = 0, lcs_len = 0;
+
+	if (file_names_len == 0)
+		return g_new0(gchar *, 1);
+
+	g_return_val_if_fail(file_names != NULL, NULL);
+
+	num = (file_names_len == -1) ? g_strv_length(file_names) : (gsize) file_names_len;
+	/* Always include a terminating NULL, enables easy freeing with g_strfreev()
+	 * We just copy the pointers so we can advance them here. But don't
+	 * forget to duplicate the strings before returning.
+	 */
+	names = g_new(gchar *, num + 1);
+	memcpy(names, file_names, num * sizeof(gchar *));
+	/* Always include a terminating NULL, enables easy freeing with g_strfreev() */
+	names[num] = NULL;
+
+	/* First: determine the common prefix, that will be stripped.
+	 * We only want to strip full path components, including the trailing slash.
+	 * Except if the component is just "/".
+	 */
+	prefix = utils_strv_find_common_prefix(names, num);
+	end = strrchr(prefix, G_DIR_SEPARATOR);
+	if (end && end > prefix)
+	{
+		prefix_len = end - prefix + 1; /* prefix_len includes the trailing slash */
+		for (i = 0; i < num; i++)
+			names[i] += prefix_len;
+	}
+
+	/* Second: determine the longest common substring (lcs), that will be ellipsized. Again,
+	 * we look only for full path compnents so that we ellipsize between separators. This implies
+	 * that the file name cannot be ellipsized which is desirable anyway.
+	 */
+	lcs = utils_strv_find_lcs(names, num, G_DIR_SEPARATOR_S"/");
+	if (lcs)
+	{
+		lcs_len = strlen(lcs);
+		/* Don't bother for tiny common parts (which are often just "." or "/"). Beware
+		 * that lcs includes the enclosing dir separators so the part must be at least 5 chars
+		 * to be eligible for ellipsizing.
+		 */
+		if (lcs_len < 7)
+			lcs_len = 0;
+	}
+
+	/* Last: build the shortened list of unique file names */
+	for (i = 0; i < num; i++)
+	{
+		if (lcs_len == 0)
+		{	/* no lcs, copy without prefix */
+			names[i] = g_strdup(names[i]);
+		}
+		else
+		{
+			const gchar *lcs_start = strstr(names[i], lcs);
+			const gchar *lcs_end = lcs_start + lcs_len;
+			/* Dir seperators are included in lcs but shouldn't be elipsized. */
+			names[i] = g_strdup_printf("%.*s...%s", (int)(lcs_start - names[i] + 1), names[i], lcs_end - 1);
+		}
+	}
+
+	g_free(lcs);
+	g_free(prefix);
+
+	return names;
+}
+
 
 /* Try to parse a date using g_date_set_parse(). It doesn't take any format hint,
  * obviously g_date_set_parse() uses some magic.
@@ -2177,13 +2372,13 @@ void utils_start_new_geany_instance(const gchar *doc_path)
 
 		if (!utils_spawn_async(NULL, (gchar**) argv, NULL, 0, NULL, NULL, NULL, &err))
 		{
-			g_printerr("Unable to open new window: %s", err->message);
+			g_printerr("Unable to open new window: %s\n", err->message);
 			g_error_free(err);
 		}
 		g_free(exec_path);
 	}
 	else
-		g_printerr("Unable to find 'geany'");
+		g_printerr("Unable to find 'geany'\n");
 }
 
 

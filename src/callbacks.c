@@ -1,8 +1,7 @@
 /*
  *      callbacks.c - this file is part of Geany, a fast and lightweight IDE
  *
- *      Copyright 2005-2012 Enrico Tröger <enrico(dot)troeger(at)uvena(dot)de>
- *      Copyright 2006-2012 Nick Treleaven <nick(dot)treleaven(at)btinternet(dot)com>
+ *      Copyright 2005 The Geany contributors
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -1467,6 +1466,9 @@ void on_context_action1_activate(GtkMenuItem *menuitem, gpointer user_data)
 	}
 	else
 	{
+		/* aplsimple: take a current word under caret */
+		editor_find_current_word_sciwc(doc->editor, -1,
+			editor_info.current_word, GEANY_MAX_WORD_LENGTH);
 		word = g_strdup(editor_info.current_word);
 	}
 
@@ -1486,17 +1488,26 @@ void on_context_action1_activate(GtkMenuItem *menuitem, gpointer user_data)
 	/* substitute the wildcard %s and run the command if it is non empty */
 	if (G_LIKELY(!EMPTY(command)))
 	{
-		gchar *command_line = g_strdup(command);
-
-		utils_str_replace_all(&command_line, "%s", word);
-
-		if (!spawn_async(NULL, command_line, NULL, NULL, NULL, &error))
-		{
-			/* G_SHELL_ERROR is parsing error, it may be caused by %s word with quotes */
-			ui_set_statusbar(TRUE, _("Cannot execute context action command \"%s\": %s. %s"),
-				error->domain == G_SHELL_ERROR ? command_line : command, error->message,
-				check_msg);
-			g_error_free(error);
+		//aplsimple
+		//gchar *command_line = g_strdup(command);
+		/* add %f, %d, %e, %p, %l placeholders */
+		gchar *command_tmp = g_strdup(command);
+		gchar *command_line = build_replace_placeholder(doc, command_tmp);
+		gint isfilecontext = strcmp(command_tmp, command_line) != 0;
+		g_free(command_tmp);
+		//save file if its data are in context command
+		if (!(isfilecontext && doc && doc->changed) || document_save_file(doc, FALSE))
+			{
+			/* add %s placeholder */
+			utils_str_replace_all(&command_line, "%s", word);
+			if (!spawn_async(NULL, command_line, NULL, NULL, NULL, &error))
+			{
+				/* G_SHELL_ERROR is parsing error, it may be caused by %s word with quotes */
+				ui_set_statusbar(TRUE, _("Cannot execute context action command \"%s\": %s. %s"),
+					error->domain == G_SHELL_ERROR ? command_line : command, error->message,
+					check_msg);
+				g_error_free(error);
+			}
 		}
 		g_free(command_line);
 	}

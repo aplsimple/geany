@@ -11,6 +11,7 @@ filetypes = \
 	filedefs/filetypes.asciidoc \
 	filedefs/filetypes.asm \
 	filedefs/filetypes.batch \
+	filedefs/filetypes.bibtex \
 	filedefs/filetypes.c \
 	filedefs/filetypes.caml \
 	filedefs/filetypes.Clojure.conf \
@@ -37,6 +38,7 @@ filetypes = \
 	filedefs/filetypes.glsl \
 	filedefs/filetypes.go \
 	filedefs/filetypes.Graphviz.conf \
+	filedefs/filetypes.Groovy.conf \
 	filedefs/filetypes.haskell \
 	filedefs/filetypes.haxe \
 	filedefs/filetypes.html \
@@ -46,9 +48,11 @@ filetypes = \
 	filedefs/filetypes.latex \
 	filedefs/filetypes.lisp \
 	filedefs/filetypes.lua \
+	filedefs/filetypes.Kotlin.conf \
 	filedefs/filetypes.makefile \
 	filedefs/filetypes.markdown \
 	filedefs/filetypes.matlab \
+	filedefs/filetypes.Nim.conf \
 	filedefs/filetypes.nsis \
 	filedefs/filetypes.objectivec \
 	filedefs/filetypes.pascal \
@@ -64,6 +68,8 @@ filetypes = \
 	filedefs/filetypes.Scala.conf \
 	filedefs/filetypes.sh \
 	filedefs/filetypes.sql \
+	filedefs/filetypes.Swift.conf \
+	filedefs/filetypes.TypeScript.conf \
 	filedefs/filetypes.tcl \
 	filedefs/filetypes.txt2tags \
 	filedefs/filetypes.vala \

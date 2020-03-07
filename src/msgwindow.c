@@ -1,8 +1,7 @@
 /*
  *      msgwindow.c - this file is part of Geany, a fast and lightweight IDE
  *
- *      Copyright 2005-2012 Enrico Tröger <enrico(dot)troeger(at)uvena(dot)de>
- *      Copyright 2006-2012 Nick Treleaven <nick(dot)treleaven(at)btinternet(dot)com>
+ *      Copyright 2005 The Geany contributors
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -119,7 +118,7 @@ void msgwin_set_messages_dir(const gchar *messages_dir)
 }
 
 
-void load_color(const gchar *color_name, GdkColor *color)
+static void load_color(const gchar *color_name, GdkColor *color)
 {
 #if GTK_CHECK_VERSION(3, 0, 0)
 	GdkRGBA rgba_color;
@@ -374,10 +373,6 @@ void msgwin_compiler_add_string(gint msg_color, const gchar *msg)
 		gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(msgwindow.tree_compiler), path, NULL, TRUE, 0.5, 0.5);
 		gtk_tree_path_free(path);
 	}
-
-	/* calling build_menu_update for every build message would be overkill, TODO really should call it once when all done */
-	gtk_widget_set_sensitive(build_get_menu_items(-1)->menu_item[GBG_FIXED][GBF_NEXT_ERROR], TRUE);
-	gtk_widget_set_sensitive(build_get_menu_items(-1)->menu_item[GBG_FIXED][GBF_PREV_ERROR], TRUE);
 
 	if (utf8_msg != msg)
 		g_free(utf8_msg);

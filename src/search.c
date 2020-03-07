@@ -1,8 +1,7 @@
 /*
  *      search.c - this file is part of Geany, a fast and lightweight IDE
  *
- *      Copyright 2006-2012 Enrico Tröger <enrico(dot)troeger(at)uvena(dot)de>
- *      Copyright 2006-2012 Nick Treleaven <nick(dot)treleaven(at)btinternet(dot)com>
+ *      Copyright 2006 The Geany contributors
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -895,7 +894,7 @@ static void create_fif_dialog(void)
 	size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
 	gtk_size_group_add_widget(size_group, label);
 
-	label3 = gtk_label_new_with_mnemonic(_("Fi_les:"));
+	label3 = gtk_label_new_with_mnemonic(_("File _patterns:"));
 	gtk_misc_set_alignment(GTK_MISC(label3), 0, 0.5);
 
 	combo_files_mode = create_fif_file_mode_combo();
@@ -907,7 +906,8 @@ static void create_fif_dialog(void)
 	entry = gtk_bin_get_child(GTK_BIN(fcombo));
 	ui_entry_add_clear_icon(GTK_ENTRY(entry));
 	gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-	gtk_widget_set_tooltip_text(entry, _("File patterns, e.g. *.c *.h"));
+	gtk_widget_set_tooltip_text(entry,
+		_("Space separated list of file patterns (e.g. *.c *.h)"));
 	ui_hookup_widget(fif_dlg.dialog, entry, "entry_files");
 	fif_dlg.files_combo = fcombo;
 
@@ -1705,7 +1705,7 @@ search_find_in_files(const gchar *utf8_search_text, const gchar *utf8_dir, const
 		NULL, &error))
  	{
 		gchar *utf8_str;
- 
+
  		ui_progress_bar_start(_("Searching..."));
  		msgwin_set_messages_dir(dir);
 		utf8_str = g_strdup_printf(_("%s %s -- %s (in directory: %s)"),

@@ -1,8 +1,7 @@
 /*
  *      keybindings.c - this file is part of Geany, a fast and lightweight IDE
  *
- *      Copyright 2006-2012 Enrico Tröger <enrico(dot)troeger(at)uvena(dot)de>
- *      Copyright 2006-2012 Nick Treleaven <nick(dot)treleaven(at)btinternet(dot)com>
+ *      Copyright 2006 The Geany contributors
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -38,6 +37,7 @@
 #include "callbacks.h"
 #include "documentprivate.h"
 #include "filetypes.h"
+#include "geanyobject.h"
 #include "keybindingsprivate.h"
 #include "main.h"
 #include "msgwindow.h"
@@ -89,7 +89,6 @@ static gboolean cb_func_search_action(guint key_id);
 static gboolean cb_func_goto_action(guint key_id);
 static gboolean cb_func_switch_action(guint key_id);
 static gboolean cb_func_clipboard_action(guint key_id);
-static gboolean cb_func_build_action(guint key_id);
 static gboolean cb_func_document_action(guint key_id);
 static gboolean cb_func_view_action(guint key_id);
 
@@ -110,11 +109,11 @@ static void cb_func_move_tab(guint key_id);
 static void add_popup_menu_accels(void);
 
 
-/** Gets significant modifiers from a GdkModifierType mask. The set of 
- * significant modifiers corresponds to the default modifier mask as returned 
+/** Gets significant modifiers from a GdkModifierType mask. The set of
+ * significant modifiers corresponds to the default modifier mask as returned
  * by @c gtk_accelerator_get_default_mod_mask(). In addition, it improves
  * the Command key handling on OS X by adding @c GEANY_PRIMARY_MOD_MASK
- * when needed. For this reason it is preferred to use this function 
+ * when needed. For this reason it is preferred to use this function
  * instead of @c gtk_accelerator_set_default_mod_mask().
  * @param mods GdkModifierType mask.
  * @return Significant modifiers from the mask.
@@ -320,7 +319,7 @@ static void init_default_kb(void)
 	ADD_KB_GROUP(GEANY_KEY_GROUP_VIEW, _("View"), cb_func_view_action);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_DOCUMENT, _("Document"), cb_func_document_action);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_PROJECT, _("Project"), cb_func_project_action);
-	ADD_KB_GROUP(GEANY_KEY_GROUP_BUILD, _("Build"), cb_func_build_action);
+	ADD_KB_GROUP(GEANY_KEY_GROUP_BUILD, _("Build"), build_keybinding);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_TOOLS, _("Tools"), NULL);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_HELP, _("Help"), NULL);
 	ADD_KB_GROUP(GEANY_KEY_GROUP_FOCUS, _("Focus"), cb_func_switch_action);
@@ -665,6 +664,8 @@ static void init_default_kb(void)
 		0, 0, "menu_linebreak", _("Toggle Line breaking"), "line_breaking1");
 	add_kb(group, GEANY_KEYS_DOCUMENT_CLONE, NULL,
 		0, 0, "menu_clone", _("_Clone"), "clone1");
+	add_kb(group, GEANY_KEYS_DOCUMENT_STRIPTRAILINGSPACES, NULL,
+		0, 0, "menu_strip_trailing_spaces", _("_Strip Trailing Spaces"), "strip_trailing_spaces1");
 	add_kb(group, GEANY_KEYS_DOCUMENT_REPLACETABS, NULL,
 		0, 0, "menu_replacetabs", _("Replace tabs with space"), "menu_replace_tabs");
 	add_kb(group, GEANY_KEYS_DOCUMENT_REPLACESPACES, NULL,
@@ -1350,9 +1351,14 @@ static gboolean on_key_press_event(GtkWidget *widget, GdkEventKey *ev, gpointer 
 	GeanyDocument *doc;
 	GeanyKeyGroup *group;
 	GeanyKeyBinding *kb;
+	gboolean key_press_ret;
 
 	if (ev->keyval == 0)
 		return FALSE;
+
+	g_signal_emit_by_name(geany_object, "key-press", ev, &key_press_ret);
+	if (key_press_ret)
+		return TRUE;
 
 	doc = document_get_current();
 	if (doc)
@@ -1643,61 +1649,6 @@ static void cb_func_menu_messagewindow(G_GNUC_UNUSED guint key_id)
 		ui_lookup_widget(main_widgets.window, "menu_show_messages_window1"));
 
 	gtk_check_menu_item_set_active(c, ! gtk_check_menu_item_get_active(c));
-}
-
-
-static gboolean cb_func_build_action(guint key_id)
-{
-	GtkWidget *item;
-	BuildMenuItems *menu_items;
-	GeanyDocument *doc = document_get_current();
-
-	if (doc == NULL)
-		return TRUE;
-
-	if (!gtk_widget_is_sensitive(ui_lookup_widget(main_widgets.window, "menu_build1")))
-		return TRUE;
-
-	menu_items = build_get_menu_items(doc->file_type->id);
-	/* TODO make it a table??*/
-	switch (key_id)
-	{
-		case GEANY_KEYS_BUILD_COMPILE:
-			item = menu_items->menu_item[GEANY_GBG_FT][GBO_TO_CMD(GEANY_GBO_COMPILE)];
-			break;
-		case GEANY_KEYS_BUILD_LINK:
-			item = menu_items->menu_item[GEANY_GBG_FT][GBO_TO_CMD(GEANY_GBO_BUILD)];
-			break;
-		case GEANY_KEYS_BUILD_MAKE:
-			item = menu_items->menu_item[GEANY_GBG_NON_FT][GBO_TO_CMD(GEANY_GBO_MAKE_ALL)];
-			break;
-		case GEANY_KEYS_BUILD_MAKEOWNTARGET:
-			item = menu_items->menu_item[GEANY_GBG_NON_FT][GBO_TO_CMD(GEANY_GBO_CUSTOM)];
-			break;
-		case GEANY_KEYS_BUILD_MAKEOBJECT:
-			item = menu_items->menu_item[GEANY_GBG_NON_FT][GBO_TO_CMD(GEANY_GBO_MAKE_OBJECT)];
-			break;
-		case GEANY_KEYS_BUILD_NEXTERROR:
-			item = menu_items->menu_item[GBG_FIXED][GBF_NEXT_ERROR];
-			break;
-		case GEANY_KEYS_BUILD_PREVIOUSERROR:
-			item = menu_items->menu_item[GBG_FIXED][GBF_PREV_ERROR];
-			break;
-		case GEANY_KEYS_BUILD_RUN:
-			item = menu_items->menu_item[GEANY_GBG_EXEC][GBO_TO_CMD(GEANY_GBO_EXEC)];
-			break;
-		case GEANY_KEYS_BUILD_OPTIONS:
-			item = menu_items->menu_item[GBG_FIXED][GBF_COMMANDS];
-			break;
-		default:
-			item = NULL;
-	}
-	/* Note: For Build menu items it's OK (at the moment) to assume they are in the correct
-	 * sensitive state, but some other menus don't update the sensitive status until
-	 * they are redrawn. */
-	if (item && gtk_widget_is_sensitive(item))
-		gtk_menu_item_activate(GTK_MENU_ITEM(item));
-	return TRUE;
 }
 
 
@@ -2196,7 +2147,7 @@ static gboolean cb_func_editor_action(guint key_id)
 			editor_show_calltip(doc->editor, -1);
 			break;
 		case GEANY_KEYS_EDITOR_CONTEXTACTION:
-			if (check_current_word(doc, FALSE))
+			//aplsimple: do not check here: if (check_current_word(doc, FALSE))
 				on_context_action1_activate(GTK_MENU_ITEM(ui_lookup_widget(main_widgets.editor_menu,
 					"context_action1")), NULL);
 			break;
@@ -2483,7 +2434,7 @@ static gboolean cb_func_format_action(guint key_id)
 			editor_indentation_by_one_space(doc->editor, -1, TRUE);
 			break;
 		case GEANY_KEYS_FORMAT_AUTOINDENT:
-			editor_smart_line_indentation(doc->editor, -1);
+			editor_smart_line_indentation(doc->editor);
 			break;
 		case GEANY_KEYS_FORMAT_TOGGLECASE:
 			on_toggle_case1_activate(NULL, NULL);
@@ -2625,6 +2576,9 @@ static gboolean cb_func_document_action(guint key_id)
 		case GEANY_KEYS_DOCUMENT_REMOVE_MARKERS_INDICATORS:
 			on_remove_markers1_activate(NULL, NULL);
 			on_menu_remove_indicators1_activate(NULL, NULL);
+			break;
+		case GEANY_KEYS_DOCUMENT_STRIPTRAILINGSPACES:
+			editor_strip_trailing_spaces(doc->editor, FALSE);
 			break;
 	}
 	return TRUE;

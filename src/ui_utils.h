@@ -1,8 +1,7 @@
 /*
  *      ui_utils.h - this file is part of Geany, a fast and lightweight IDE
  *
- *      Copyright 2006-2012 Enrico Tröger <enrico(dot)troeger(at)uvena(dot)de>
- *      Copyright 2006-2012 Nick Treleaven <nick(dot)treleaven(at)btinternet(dot)com>
+ *      Copyright 2006 The Geany contributors
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -294,7 +293,8 @@ void ui_update_popup_reundo_items(GeanyDocument *doc);
 
 void ui_update_popup_copy_items(GeanyDocument *doc);
 
-void ui_update_popup_goto_items(gboolean enable);
+//aplsimple: void ui_update_popup_goto_items(gboolean enable);
+void ui_update_popup_goto_items(gchar* enable);
 
 
 void ui_menu_copy_items_set_sensitive(gboolean sensitive);

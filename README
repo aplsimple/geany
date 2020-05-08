@@ -1,3 +1,17 @@
+What's this
+-----------
+
+This is a 'mulstered' version of Geany, including the following additions:
+
+  * Providing %f, %d, %e, %l, %p wildcards for the context command.
+
+  * Enabling the context command when %s (selected text) is empty.
+
+  * Saving a current file before running the context command (if it includes %f, %d and other file-related wildcards), as it behaves before running Compile/Build/Run.
+
+The version of Geany is v1.37 on 3 Mar 2020.
+
+
 Geany - A fast and lightweight IDE
 ----------------------------------
 

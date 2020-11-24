@@ -32,6 +32,7 @@ zlib
 expat
 libffi
 libiconv
+brotli
 bzip2
 libffi
 libpng
@@ -205,8 +206,8 @@ cleanup_unnecessary_files() {
 	rm -rf share/info
 	rm -rf share/man
 	rm -rf share/xml
-	# cleanup binaries and libs (delete anything except *.dll)
-	find bin ! -name '*.dll' -type f -delete
+	# cleanup binaries and libs (delete anything except *.dll and GSpawn helper binaries)
+	find bin ! -name '*.dll' ! -name 'gspawn-win32-helper*.exe' -type f -delete
 	# cleanup empty directories
 	find . -type d -empty -delete
 }

@@ -2,6 +2,15 @@ Geany - A fast and lightweight IDE
 ----------------------------------
 
 
+About this fork of  Geany
+-------------------------
+This fork's features:
+
+- %f, %d, %e, %p, %l wildcards for the context menu's command
+- enabling the context command when %s (selected text) is empty
+- saving a current file before running the context command (if it includes the file-related wildcards)
+
+
 About
 -----
 Geany is a small and lightweight integrated development environment.
